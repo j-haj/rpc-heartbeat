@@ -27,7 +27,7 @@ func (s *heartbeatServer) Heartbeat(ctx context.Context, msg *pb.HeartbeatMessag
 		s.mu.Lock()
 		s.registeredClients[msg.Id] = msg.Time
 		s.mu.Unlock()
-		log.Printf("Client %d checked in successfully\n")
+		log.Printf("Client %d checked in successfully\n", msg.Id)
 		return &pb.Status{}, nil
 	}
 	log.Printf("Error - client ID %d unrecognized\n", msg.Id)
@@ -35,11 +35,13 @@ func (s *heartbeatServer) Heartbeat(ctx context.Context, msg *pb.HeartbeatMessag
 }
 
 func (s *heartbeatServer) JoinRequest(ctx context.Context, requestInfo *pb.RequestInfo) (*pb.ClientId, error) {
-	id := &pb.ClientId{Id: s.clientCount + 1, HeartbeatInterval: s.lifetimeThreshold}
+	id := &pb.ClientId{Id: s.clientCount, HeartbeatInterval: s.lifetimeThreshold}
 	log.Printf("Received join request - sending ID %d\n", id.Id)
 	s.mu.Lock()
+	// Store current client ID
+	s.registeredClients[s.clientCount] = time.Now().Unix()
+	// Increment clientCount for next client ID
 	s.clientCount++
-	s.registeredClients[id.Id] = time.Now().Unix()
 	s.mu.Unlock()
 	return id, nil
 }
