@@ -8,7 +8,7 @@ service Heartbeat {
 
   // Heartbeat is called intermittently to indicate that the respective client
   // is still alive and able to communicate with the the master
-	rpc Heartbeat(HeartbeatMessage) returns (Status) {}
+	rpc Heartbeat(HeartbeatMessage) returns (HeartbeatResponse) {}
 }
 
 // ClientId is a unique integer ID given to a client in response to a JoinRequest
@@ -25,7 +25,8 @@ message HeartbeatMessage {
 }
 
 // Empty status message. Receipt of a Status message indicates OK.
-message Status {
+message HeartbeatResponse {
+  int64 token = 1;
 }
 
 // RequestInfo is a placeholder for potential future info we may want to include
