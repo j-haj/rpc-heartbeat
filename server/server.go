@@ -1,7 +1,10 @@
 package main
 
 import (
+	"errors"
+	"fmt"
 	"log"
+	"math/rand"
 	"net"
 	"sync"
 	"time"
@@ -20,7 +23,7 @@ type heartbeatServer struct {
 }
 
 // Heartbeat is called when the heartbeat server receives a heartbeat from a client
-func (s *heartbeatServer) Heartbeat(ctx context.Context, msg *pb.HeartbeatMessage) (*pb.Status, error) {
+func (s *heartbeatServer) Heartbeat(ctx context.Context, msg *pb.HeartbeatMessage) (*pb.HeartbeatResponse, error) {
 	// Register heartbeat
 	log.Printf("Received heartbeat from %d with timestamp %d\n", msg.Id, msg.Time)
 	if _, ok := s.registeredClients[msg.Id]; ok {
@@ -28,10 +31,10 @@ func (s *heartbeatServer) Heartbeat(ctx context.Context, msg *pb.HeartbeatMessag
 		s.registeredClients[msg.Id] = msg.Time
 		s.mu.Unlock()
 		log.Printf("Client %d checked in successfully\n", msg.Id)
-		return &pb.Status{}, nil
+		return &pb.HeartbeatResponse{Token: rand.Int63()}, nil
 	}
 	log.Printf("Error - client ID %d unrecognized\n", msg.Id)
-	return &pb.Status{}, nil
+	return nil, errors.New(fmt.Sprintf("client ID %d not recognized", msg.Id))
 }
 
 func (s *heartbeatServer) JoinRequest(ctx context.Context, requestInfo *pb.RequestInfo) (*pb.ClientId, error) {
