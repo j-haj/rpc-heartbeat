@@ -26,7 +26,7 @@ func (c *Client) RequestID(client pb.HeartbeatClient) {
 		c.HeartbeatInterval = msg.HeartbeatInterval
 		log.Printf("Received ID %d from heartbeat server - using heartbeat interval %d\n", c.ID, c.HeartbeatInterval)
 	} else {
-		log.Fatalf("error in join request!")
+		log.Fatalf("error in join request: %v", err)
 	}
 }
 
@@ -37,20 +37,16 @@ func (c *Client) beginHeartbeat(client pb.HeartbeatClient) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		msg := &pb.HeartbeatMessage{Id: c.ID, Time: time.Now().Unix()}
-		status, err := client.Heartbeat(ctx, msg)
-		if status != nil {
-			log.Printf("Client %d received OK from master\n", c.ID)
-		} else {
-			log.Printf("Client %d received nil Status\n", c.ID)
-		}
+		response, err := client.Heartbeat(ctx, msg)
 		if err != nil {
 			log.Fatalf("failed to send heartbeat - %v", err)
 		}
+		log.Printf("Client %d received token %d from master\n", c.ID, response.Token)
 	}
 }
 
 func main() {
-	N := 5
+	N := 50
 	clients := make([]*Client, N)
 	var wg sync.WaitGroup
 	for _, c := range clients {
