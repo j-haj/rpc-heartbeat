@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"sync"
 	"time"
 
 	"golang.org/x/net/context"
@@ -23,7 +24,7 @@ func (c *Client) RequestID(client pb.HeartbeatClient) {
 	if msg, err := client.JoinRequest(ctx, rqstInfo); err == nil {
 		c.ID = msg.Id
 		c.HeartbeatInterval = msg.HeartbeatInterval
-		log.Printf("Received ID %d from heartbeat server\n", c.ID)
+		log.Printf("Received ID %d from heartbeat server - using heartbeat interval %d\n", c.ID, c.HeartbeatInterval)
 	} else {
 		log.Fatalf("error in join request!")
 	}
@@ -31,13 +32,16 @@ func (c *Client) RequestID(client pb.HeartbeatClient) {
 
 func (c *Client) beginHeartbeat(client pb.HeartbeatClient) {
 	for {
-		time.Sleep(time.Duration(c.HeartbeatInterval) * time.Second)
+		log.Printf("Client: %v\n", *c)
+		time.Sleep(time.Duration(c.HeartbeatInterval) * time.Nanosecond)
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		msg := &pb.HeartbeatMessage{Id: c.ID, Time: time.Now().Unix()}
 		status, err := client.Heartbeat(ctx, msg)
 		if status != nil {
-			log.Printf("Client %d Received OK from master\n", c.ID)
+			log.Printf("Client %d received OK from master\n", c.ID)
+		} else {
+			log.Printf("Client %d received nil Status\n", c.ID)
 		}
 		if err != nil {
 			log.Fatalf("failed to send heartbeat - %v", err)
@@ -46,18 +50,21 @@ func (c *Client) beginHeartbeat(client pb.HeartbeatClient) {
 }
 
 func main() {
-	opts := []grpc.DialOption{grpc.WithInsecure()}
-	conn, err := grpc.Dial("localhost:10000", opts...)
-	if err != nil {
-		log.Printf("error - failed to establish connection: %v", err)
-		return
-	}
-	client := pb.NewHeartbeatClient(conn)
-
 	N := 5
-	clients := make([]Client, N)
+	clients := make([]*Client, N)
+	var wg sync.WaitGroup
 	for _, c := range clients {
+		opts := []grpc.DialOption{grpc.WithInsecure()}
+		conn, err := grpc.Dial("localhost:10000", opts...)
+		if err != nil {
+			log.Printf("error - failed to establish connection: %v", err)
+			return
+		}
+		client := pb.NewHeartbeatClient(conn)
+		c = &Client{}
 		c.RequestID(client)
+		wg.Add(1)
 		go c.beginHeartbeat(client)
 	}
+	wg.Wait()
 }
